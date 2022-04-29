@@ -247,6 +247,22 @@ let CourseResolver = class CourseResolver {
             return null;
         });
     }
+    deleteArticle(lessonId, { req }) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const lesson = yield ormconfig_1.default.getRepository(Lesson_1.Lesson)
+                .createQueryBuilder("lesson")
+                .leftJoin("lesson.section", "section")
+                .leftJoin("section.course", "course")
+                .where("lesson.id = :lessonId", { lessonId: lessonId })
+                .where("course.instructorId = :id", { id: req.session.userId })
+                .getOne();
+            if (!lesson) {
+                return null;
+            }
+            yield Lesson_1.Lesson.update({ id: lessonId }, { isArticle: false, articleText: null });
+            return lesson;
+        });
+    }
     changeLessonOrderDifferentSection(nextSectionId, currentSectionId, currentLessonId, currentLessonOrder, nextLessonOrder, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
             const nextSection = yield Section_1.Section.findOneBy({ id: nextSectionId });
@@ -283,6 +299,9 @@ let CourseResolver = class CourseResolver {
                         .execute();
                 }));
                 const currentLesson = yield Lesson_1.Lesson.findOneBy({ id: currentLessonId });
+                const course = yield Course_1.Course.findOneBy({
+                    id: "77",
+                });
                 if (currentLesson) {
                     return {
                         currentSection,
@@ -531,6 +550,15 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], CourseResolver.prototype, "setArticleText", null);
+__decorate([
+    (0, type_graphql_1.Mutation)(() => Lesson_1.Lesson),
+    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
+    __param(0, (0, type_graphql_1.Arg)("lessonId")),
+    __param(1, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], CourseResolver.prototype, "deleteArticle", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => OrderedLessonsInMultipleSections),
     (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),

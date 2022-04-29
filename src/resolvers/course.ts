@@ -290,6 +290,33 @@ export class CourseResolver {
     return null;
   }
 
+  //add video url to lesson
+  @Mutation(() => Lesson)
+  @UseMiddleware(isAuth)
+  async deleteArticle(
+    @Arg("lessonId") lessonId: string,
+    @Ctx() { req }: MyContext
+  ): Promise<Lesson | null> {
+    const lesson = await AppDataSource.getRepository(Lesson)
+      .createQueryBuilder("lesson")
+      .leftJoin("lesson.section", "section")
+      .leftJoin("section.course", "course")
+      .where("lesson.id = :lessonId", { lessonId: lessonId })
+      .where("course.instructorId = :id", { id: req.session.userId })
+      .getOne();
+
+    if (!lesson) {
+      return null;
+    }
+
+    await Lesson.update(
+      { id: lessonId },
+      { isArticle: false, articleText: null }
+    );
+
+    return lesson;
+  }
+
   @Mutation(() => OrderedLessonsInMultipleSections)
   @UseMiddleware(isAuth)
   async changeLessonOrderDifferentSection(
@@ -342,7 +369,9 @@ export class CourseResolver {
       });
 
       const currentLesson = await Lesson.findOneBy({ id: currentLessonId });
-
+      const course = await Course.findOneBy({
+        id: "77",
+      });
       if (currentLesson) {
         return {
           currentSection,
