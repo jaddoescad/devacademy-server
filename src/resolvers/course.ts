@@ -100,11 +100,11 @@ export class CourseResolver {
     return qb;
   }
 
-  @Query(() => [Course])
+  @Query(() => Course)
   async instructorCourse(
     @Ctx() { req }: MyContext,
     @Arg("courseId") courseId: string
-  ): Promise<Course[]> {
+  ): Promise<Course | null> {
     const qb = await AppDataSource.getRepository(Course)
       .createQueryBuilder("course")
       .where("course.instructorId = :instructorId", {
@@ -114,7 +114,7 @@ export class CourseResolver {
         courseId: courseId,
       })
       .orderBy('course."createdAt"', "ASC")
-      .getMany();
+      .getOne();
     return qb;
   }
 
@@ -200,8 +200,6 @@ export class CourseResolver {
       .where("course.instructorId = :id", { id: req.session.userId })
       .getOne();
 
-    console.log("hello");
-    console.log(section);
     if (!section) {
       return null;
     }
@@ -465,7 +463,7 @@ export class CourseResolver {
   }
 
   @Mutation(() => Boolean)
-  // @UseMiddleware(isAuth)
+  @UseMiddleware(isAuth)
   async deleteSection(
     @Arg("id") sectionId: string,
     @Arg("courseId") courseId: string
@@ -504,9 +502,39 @@ export class CourseResolver {
 
   @Mutation(() => Boolean)
   @UseMiddleware(isAuth)
-  async deleteLesson(@Arg("id") id: string): Promise<boolean> {
-    await Lesson.delete({ id });
-    return true;
+  async deleteLesson(
+    @Arg("sectionId") sectionId: string,
+    @Arg("lessonId") lessonId: string
+  ): Promise<boolean> {
+    const section = await Section.findOneBy({ id: sectionId });
+    if (section) {
+      var lessonOrder = section.lessonOrder;
+      //remove id from sectionOrder
+
+      const index = lessonOrder.indexOf(lessonId);
+      if (index > -1) {
+        lessonOrder.splice(index, 1);
+      } else {
+        return false;
+      }
+      await AppDataSource.transaction(async (transactionalEntityManager) => {
+        transactionalEntityManager
+          .createQueryBuilder()
+          .update(Section)
+          .set({ lessonOrder })
+          .where("id = :id", { id: section.id })
+          .execute();
+        transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(Lesson)
+          .where("id = :id", { id: lessonId })
+          .execute();
+      });
+      return true;
+    } else {
+      return false;
+    }
   }
 
   @Mutation(() => Lesson)
@@ -558,4 +586,40 @@ export class CourseResolver {
   }
 
   //change course title for hassan
+
+  @Mutation(() => Course)
+  @UseMiddleware(isAuth)
+  async saveLandingPage(
+    @Arg("courseId") courseId: string,
+    @Arg("title") title: string,
+    @Arg("description") description: string,
+    @Arg("promoImage") promoImage: string
+  ): Promise<Course | null> {
+    const course = Course.findOneBy({ id: courseId });
+
+    if (!course) {
+      return null;
+    }
+
+    if (typeof title !== "undefined" && title !== "") {
+      if (
+        promoImage !== "" ||
+        promoImage !== null ||
+        promoImage !== undefined
+      ) {
+        await Course.update(
+          { id: courseId },
+          { title: title, description: description, promoImage: promoImage }
+        );
+      } else {
+        await Course.update(
+          { id: courseId },
+          { title: title, description: description }
+        );
+      }
+      return course;
+    }
+
+    return null;
+  }
 }

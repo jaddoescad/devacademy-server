@@ -125,7 +125,7 @@ let CourseResolver = class CourseResolver {
                 courseId: courseId,
             })
                 .orderBy('course."createdAt"', "ASC")
-                .getMany();
+                .getOne();
             return qb;
         });
     }
@@ -187,8 +187,6 @@ let CourseResolver = class CourseResolver {
                 .where("section.id = :sectionId", { sectionId: sectionId })
                 .where("course.instructorId = :id", { id: req.session.userId })
                 .getOne();
-            console.log("hello");
-            console.log(section);
             if (!section) {
                 return null;
             }
@@ -410,10 +408,37 @@ let CourseResolver = class CourseResolver {
             }
         });
     }
-    deleteLesson(id) {
+    deleteLesson(sectionId, lessonId) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield Lesson_1.Lesson.delete({ id });
-            return true;
+            const section = yield Section_1.Section.findOneBy({ id: sectionId });
+            if (section) {
+                var lessonOrder = section.lessonOrder;
+                const index = lessonOrder.indexOf(lessonId);
+                if (index > -1) {
+                    lessonOrder.splice(index, 1);
+                }
+                else {
+                    return false;
+                }
+                yield ormconfig_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
+                    transactionalEntityManager
+                        .createQueryBuilder()
+                        .update(Section_1.Section)
+                        .set({ lessonOrder })
+                        .where("id = :id", { id: section.id })
+                        .execute();
+                    transactionalEntityManager
+                        .createQueryBuilder()
+                        .delete()
+                        .from(Lesson_1.Lesson)
+                        .where("id = :id", { id: lessonId })
+                        .execute();
+                }));
+                return true;
+            }
+            else {
+                return false;
+            }
         });
     }
     changeLessonTitle(lessonId, title, { req }) {
@@ -456,6 +481,26 @@ let CourseResolver = class CourseResolver {
             }
         });
     }
+    saveLandingPage(courseId, title, description, promoImage) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const course = Course_1.Course.findOneBy({ id: courseId });
+            if (!course) {
+                return null;
+            }
+            if (typeof title !== "undefined" && title !== "") {
+                if (promoImage !== "" ||
+                    promoImage !== null ||
+                    promoImage !== undefined) {
+                    yield Course_1.Course.update({ id: courseId }, { title: title, description: description, promoImage: promoImage });
+                }
+                else {
+                    yield Course_1.Course.update({ id: courseId }, { title: title, description: description });
+                }
+                return course;
+            }
+            return null;
+        });
+    }
 };
 __decorate([
     (0, type_graphql_1.Query)(() => PaginatedCourses),
@@ -481,7 +526,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], CourseResolver.prototype, "instructorCourses", null);
 __decorate([
-    (0, type_graphql_1.Query)(() => [Course_1.Course]),
+    (0, type_graphql_1.Query)(() => Course_1.Course),
     __param(0, (0, type_graphql_1.Ctx)()),
     __param(1, (0, type_graphql_1.Arg)("courseId")),
     __metadata("design:type", Function),
@@ -613,6 +658,7 @@ __decorate([
 ], CourseResolver.prototype, "deleteCourse", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => Boolean),
+    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
     __param(0, (0, type_graphql_1.Arg)("id")),
     __param(1, (0, type_graphql_1.Arg)("courseId")),
     __metadata("design:type", Function),
@@ -622,9 +668,10 @@ __decorate([
 __decorate([
     (0, type_graphql_1.Mutation)(() => Boolean),
     (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
-    __param(0, (0, type_graphql_1.Arg)("id")),
+    __param(0, (0, type_graphql_1.Arg)("sectionId")),
+    __param(1, (0, type_graphql_1.Arg)("lessonId")),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], CourseResolver.prototype, "deleteLesson", null);
 __decorate([
@@ -645,6 +692,17 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], CourseResolver.prototype, "lesson", null);
+__decorate([
+    (0, type_graphql_1.Mutation)(() => Course_1.Course),
+    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
+    __param(0, (0, type_graphql_1.Arg)("courseId")),
+    __param(1, (0, type_graphql_1.Arg)("title")),
+    __param(2, (0, type_graphql_1.Arg)("description")),
+    __param(3, (0, type_graphql_1.Arg)("promoImage")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String, String]),
+    __metadata("design:returntype", Promise)
+], CourseResolver.prototype, "saveLandingPage", null);
 CourseResolver = __decorate([
     (0, type_graphql_1.Resolver)()
 ], CourseResolver);
