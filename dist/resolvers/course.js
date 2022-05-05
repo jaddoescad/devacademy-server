@@ -28,6 +28,7 @@ exports.CourseResolver = void 0;
 const isAuth_1 = require("../middleware/isAuth");
 const type_graphql_1 = require("type-graphql");
 const Course_1 = require("../entities/Course");
+const uuid_1 = require("uuid");
 const ormconfig_1 = __importDefault(require("../ormconfig"));
 const Section_1 = require("../entities/Section");
 const Lesson_1 = require("../entities/Lesson");
@@ -132,6 +133,7 @@ let CourseResolver = class CourseResolver {
     createCourse(title, { req }) {
         return __awaiter(this, void 0, void 0, function* () {
             return Course_1.Course.create({
+                id: (0, uuid_1.v4)(),
                 title: title,
                 instructorId: req.session.userId,
             }).save();
@@ -501,6 +503,112 @@ let CourseResolver = class CourseResolver {
             return null;
         });
     }
+    createPublished(courseId, { req }) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const course = yield ormconfig_1.default.getRepository(Course_1.Course)
+                .createQueryBuilder("course")
+                .where("course.id = :courseId", { courseId: courseId })
+                .leftJoinAndSelect("course.sections", "sections")
+                .leftJoinAndSelect("sections.lessons", "lessons")
+                .getOne();
+            if (!course) {
+                return null;
+            }
+            yield ormconfig_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
+                transactionalEntityManager.query(`
+      insert into course ("id", "title", "instructorId", "description", "promoImage", "publishedStatus", "sectionOrder")
+      values (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7
+        )
+      ON CONFLICT (id) 
+      DO UPDATE 
+      SET title = EXCLUDED.title,
+      description = EXCLUDED.description,
+      "promoImage" = EXCLUDED."promoImage",
+      "publishedStatus" = EXCLUDED."publishedStatus",
+      "sectionOrder" = EXCLUDED."sectionOrder";`, [
+                    courseId + "_published",
+                    course.title,
+                    course.instructorId,
+                    course.description,
+                    course.promoImage,
+                    "published",
+                    course.sectionOrder,
+                ]);
+                const sections = course === null || course === void 0 ? void 0 : course.sections;
+                if ((sections === null || sections === void 0 ? void 0 : sections.length) && sections.length > 0) {
+                    for (let i = 0; i < sections.length; i++) {
+                        const section = sections[i];
+                        transactionalEntityManager.query(`
+          insert into section ("id", "title", "courseId", "lessonOrder")
+          values (
+            $1,
+            $2,
+            $3,
+            $4
+            )
+          ON CONFLICT (id) 
+          DO UPDATE 
+          SET title = EXCLUDED.title,
+          "courseId" = EXCLUDED."courseId",
+          "lessonOrder" = EXCLUDED."lessonOrder";`, [
+                            section.id + "_published",
+                            section.title,
+                            section.courseId + "_published",
+                            section.lessonOrder,
+                        ]);
+                        const lessons = section.lessons;
+                        for (let j = 0; j < lessons.length; j++) {
+                            const lesson = lessons[j];
+                            transactionalEntityManager.query(`
+              insert into lesson ("id", "title", "sectionId", "videoEmbedUrl", "videoUri", "videoState", "articleText", "isArticle")
+              values (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8
+                )
+              ON CONFLICT (id) 
+              DO UPDATE 
+              SET title = EXCLUDED.title,
+              "sectionId" = EXCLUDED."sectionId",
+              "videoEmbedUrl" = EXCLUDED."videoEmbedUrl",
+              "videoUri" = EXCLUDED."videoUri",
+              "videoState" = EXCLUDED."videoState",
+              "articleText" = EXCLUDED."articleText",
+              "isArticle" = EXCLUDED."isArticle";`, [
+                                lesson.id + "_published",
+                                lesson.title,
+                                lesson.sectionId + "_published",
+                                lesson.videoEmbedUrl,
+                                lesson.videoUri,
+                                lesson.videoState,
+                                lesson.articleText,
+                                lesson.isArticle,
+                            ]);
+                        }
+                    }
+                }
+            }));
+            const course_published = yield ormconfig_1.default.getRepository(Course_1.Course)
+                .createQueryBuilder("course")
+                .where("course.id = :courseId", { courseId: courseId + "_published" })
+                .leftJoinAndSelect("course.sections", "sections")
+                .leftJoinAndSelect("sections.lessons", "lessons")
+                .getOne();
+            return course_published;
+        });
+    }
 };
 __decorate([
     (0, type_graphql_1.Query)(() => PaginatedCourses),
@@ -650,7 +758,6 @@ __decorate([
 ], CourseResolver.prototype, "updateCourse", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => Boolean),
-    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
     __param(0, (0, type_graphql_1.Arg)("id")),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
@@ -703,6 +810,14 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], CourseResolver.prototype, "saveLandingPage", null);
+__decorate([
+    (0, type_graphql_1.Mutation)(() => Course_1.Course),
+    __param(0, (0, type_graphql_1.Arg)("courseId")),
+    __param(1, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], CourseResolver.prototype, "createPublished", null);
 CourseResolver = __decorate([
     (0, type_graphql_1.Resolver)()
 ], CourseResolver);

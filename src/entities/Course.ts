@@ -7,6 +7,7 @@ import {
   Entity,
   ManyToOne,
   OneToMany,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
@@ -25,7 +26,7 @@ export enum Category {
 @Entity()
 export class Course extends BaseEntity {
   @Field()
-  @PrimaryGeneratedColumn()
+  @PrimaryColumn()
   id: string;
 
   @Field(() => String)
@@ -79,6 +80,10 @@ export class Course extends BaseEntity {
   @Field(() => [String])
   @Column("text", {array:true,nullable: false, default: [] })
   sectionOrder: string[];
+
+  @Field(() => String, { nullable: true })
+  @Column({ type: "text", nullable: true })
+  publishedStatus: string;
 
 
   // @Field(() => [String], { nullable: true })

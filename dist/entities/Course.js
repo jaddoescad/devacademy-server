@@ -24,7 +24,7 @@ let Course = class Course extends typeorm_1.BaseEntity {
 };
 __decorate([
     (0, type_graphql_1.Field)(),
-    (0, typeorm_1.PrimaryGeneratedColumn)(),
+    (0, typeorm_1.PrimaryColumn)(),
     __metadata("design:type", String)
 ], Course.prototype, "id", void 0);
 __decorate([
@@ -91,6 +91,11 @@ __decorate([
     (0, typeorm_1.Column)("text", { array: true, nullable: false, default: [] }),
     __metadata("design:type", Array)
 ], Course.prototype, "sectionOrder", void 0);
+__decorate([
+    (0, type_graphql_1.Field)(() => String, { nullable: true }),
+    (0, typeorm_1.Column)({ type: "text", nullable: true }),
+    __metadata("design:type", String)
+], Course.prototype, "publishedStatus", void 0);
 Course = __decorate([
     (0, type_graphql_1.ObjectType)(),
     (0, typeorm_1.Entity)()

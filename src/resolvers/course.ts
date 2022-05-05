@@ -12,6 +12,8 @@ import {
   ObjectType,
 } from "type-graphql";
 import { Course } from "../entities/Course";
+import { v4 as uuidv4 } from "uuid";
+
 // import { User } from "../entities/User";
 
 import AppDataSource from "../ormconfig";
@@ -125,6 +127,7 @@ export class CourseResolver {
     @Ctx() { req }: MyContext
   ): Promise<Course> {
     return Course.create({
+      id: uuidv4(),
       title: title,
       instructorId: req.session.userId,
     }).save();
@@ -456,7 +459,7 @@ export class CourseResolver {
   }
 
   @Mutation(() => Boolean)
-  @UseMiddleware(isAuth)
+  // @UseMiddleware(isAuth)
   async deleteCourse(@Arg("id") id: string): Promise<boolean> {
     await Course.delete({ id });
     return true;
@@ -621,5 +624,135 @@ export class CourseResolver {
     }
 
     return null;
+  }
+
+  @Mutation(() => Course)
+  // @UseMiddleware(isAuth)
+  async createPublished(
+    @Arg("courseId") courseId: string,
+    @Ctx() { req }: MyContext
+  ): Promise<Course | null> {
+    // const course = await Course.findOneBy({ id: courseId });
+
+    const course = await AppDataSource.getRepository(Course)
+      .createQueryBuilder("course")
+      .where("course.id = :courseId", { courseId: courseId })
+      .leftJoinAndSelect("course.sections", "sections")
+      .leftJoinAndSelect("sections.lessons", "lessons")
+      .getOne();
+
+    if (!course) {
+      return null;
+    }
+
+    await AppDataSource.transaction(async (transactionalEntityManager) => {
+      transactionalEntityManager.query(
+        `
+      insert into course ("id", "title", "instructorId", "description", "promoImage", "publishedStatus", "sectionOrder")
+      values (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7
+        )
+      ON CONFLICT (id) 
+      DO UPDATE 
+      SET title = EXCLUDED.title,
+      description = EXCLUDED.description,
+      "promoImage" = EXCLUDED."promoImage",
+      "publishedStatus" = EXCLUDED."publishedStatus",
+      "sectionOrder" = EXCLUDED."sectionOrder";`,
+        [
+          courseId + "_published",
+          course.title,
+          course.instructorId,
+          course.description,
+          course.promoImage,
+          "published",
+          course.sectionOrder,
+        ]
+      );
+
+      const sections = course?.sections;
+
+      if (sections?.length && sections.length > 0) {
+        for (let i = 0; i < sections.length; i++) {
+          const section = sections[i];
+
+          transactionalEntityManager.query(
+            `
+          insert into section ("id", "title", "courseId", "lessonOrder")
+          values (
+            $1,
+            $2,
+            $3,
+            $4
+            )
+          ON CONFLICT (id) 
+          DO UPDATE 
+          SET title = EXCLUDED.title,
+          "courseId" = EXCLUDED."courseId",
+          "lessonOrder" = EXCLUDED."lessonOrder";`,
+            [
+              section.id + "_published",
+              section.title,
+              section.courseId + "_published",
+              section.lessonOrder,
+            ]
+          );
+
+          const lessons = section.lessons;
+          for (let j = 0; j < lessons.length; j++) {
+            const lesson = lessons[j];
+
+            transactionalEntityManager.query(
+              `
+              insert into lesson ("id", "title", "sectionId", "videoEmbedUrl", "videoUri", "videoState", "articleText", "isArticle")
+              values (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8
+                )
+              ON CONFLICT (id) 
+              DO UPDATE 
+              SET title = EXCLUDED.title,
+              "sectionId" = EXCLUDED."sectionId",
+              "videoEmbedUrl" = EXCLUDED."videoEmbedUrl",
+              "videoUri" = EXCLUDED."videoUri",
+              "videoState" = EXCLUDED."videoState",
+              "articleText" = EXCLUDED."articleText",
+              "isArticle" = EXCLUDED."isArticle";`,
+              [
+                lesson.id + "_published",
+                lesson.title,
+                lesson.sectionId + "_published",
+                lesson.videoEmbedUrl,
+                lesson.videoUri,
+                lesson.videoState,
+                lesson.articleText,
+                lesson.isArticle,
+              ]
+            );
+          }
+        }
+      }
+    });
+
+    const course_published = await AppDataSource.getRepository(Course)
+      .createQueryBuilder("course")
+      .where("course.id = :courseId", { courseId: courseId + "_published" })
+      .leftJoinAndSelect("course.sections", "sections")
+      .leftJoinAndSelect("sections.lessons", "lessons")
+      .getOne();
+
+    return course_published;
   }
 }
