@@ -83,7 +83,7 @@ export class Course extends BaseEntity {
 
   @Field(() => String, { nullable: true })
   @Column({ type: "text", nullable: true })
-  publishedStatus: string;
+  publishedStatus = 'draft';
 
 
   // @Field(() => [String], { nullable: true })

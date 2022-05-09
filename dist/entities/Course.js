@@ -21,6 +21,10 @@ var Category;
     Category["GHOST"] = "ghost";
 })(Category = exports.Category || (exports.Category = {}));
 let Course = class Course extends typeorm_1.BaseEntity {
+    constructor() {
+        super(...arguments);
+        this.publishedStatus = 'draft';
+    }
 };
 __decorate([
     (0, type_graphql_1.Field)(),
@@ -94,7 +98,7 @@ __decorate([
 __decorate([
     (0, type_graphql_1.Field)(() => String, { nullable: true }),
     (0, typeorm_1.Column)({ type: "text", nullable: true }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], Course.prototype, "publishedStatus", void 0);
 Course = __decorate([
     (0, type_graphql_1.ObjectType)(),

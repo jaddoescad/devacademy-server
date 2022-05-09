@@ -69,6 +69,7 @@ let CourseResolver = class CourseResolver {
                 .createQueryBuilder("course")
                 .orderBy('course."createdAt"', "ASC")
                 .leftJoinAndSelect("course.instructor", "instructor")
+                .where("course.publishedStatus = 'published'")
                 .limit(limit)
                 .offset(offset)
                 .getMany();
@@ -94,6 +95,36 @@ let CourseResolver = class CourseResolver {
                 .where("course.id = :courseId", {
                 courseId: courseId,
             })
+                .where("course.publishedStatus = :publishedStatus", {
+                publishedStatus: "draft",
+            })
+                .getOne();
+            if (qb) {
+                return qb;
+            }
+            else {
+                return null;
+            }
+        });
+    }
+    getPublishedCourse({ req }, courseId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const qb = yield ormconfig_1.default.getRepository(Course_1.Course)
+                .createQueryBuilder("course")
+                .where("course.instructorId = :instructorId", {
+                instructorId: req.session.userId,
+            })
+                .leftJoinAndSelect("course.sections", "sections")
+                .where("course.id = :courseId", {
+                courseId: courseId,
+            })
+                .leftJoinAndSelect("sections.lessons", "lessons")
+                .where("course.id = :courseId", {
+                courseId: courseId,
+            })
+                .where("course.publishedStatus = :publishedStatus", {
+                publishedStatus: "published",
+            })
                 .getOne();
             if (qb) {
                 return qb;
@@ -110,6 +141,9 @@ let CourseResolver = class CourseResolver {
                 .where("course.instructorId = :instructorId", {
                 instructorId: req.session.userId,
             })
+                .where("course.publishedStatus = :publishedStatus", {
+                publishedStatus: "draft",
+            })
                 .orderBy('course."createdAt"', "ASC")
                 .getMany();
             return qb;
@@ -125,7 +159,6 @@ let CourseResolver = class CourseResolver {
                 .where("course.id = :courseId", {
                 courseId: courseId,
             })
-                .orderBy('course."createdAt"', "ASC")
                 .getOne();
             return qb;
         });
@@ -136,6 +169,7 @@ let CourseResolver = class CourseResolver {
                 id: (0, uuid_1.v4)(),
                 title: title,
                 instructorId: req.session.userId,
+                publishedStatus: "draft",
             }).save();
         });
     }
@@ -626,6 +660,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], CourseResolver.prototype, "course", null);
+__decorate([
+    (0, type_graphql_1.Query)(() => Course_1.Course, { nullable: true }),
+    __param(0, (0, type_graphql_1.Ctx)()),
+    __param(1, (0, type_graphql_1.Arg)("id")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", Promise)
+], CourseResolver.prototype, "getPublishedCourse", null);
 __decorate([
     (0, type_graphql_1.Query)(() => [Course_1.Course]),
     __param(0, (0, type_graphql_1.Ctx)()),

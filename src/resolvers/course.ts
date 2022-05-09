@@ -13,6 +13,7 @@ import {
 } from "type-graphql";
 import { Course } from "../entities/Course";
 import { v4 as uuidv4 } from "uuid";
+import { IsNull } from "typeorm";
 
 // import { User } from "../entities/User";
 
@@ -49,6 +50,7 @@ export class CourseResolver {
       .createQueryBuilder("course")
       .orderBy('course."createdAt"', "ASC")
       .leftJoinAndSelect("course.instructor", "instructor")
+      .where("course.publishedStatus = 'published'")
       .limit(limit)
       .offset(offset)
       .getMany();
@@ -67,7 +69,10 @@ export class CourseResolver {
   // }
 
   @Query(() => Course, { nullable: true })
-  async course(@Ctx() { req }: MyContext, @Arg("id") courseId: string) {
+  async course(
+    @Ctx() { req }: MyContext,
+    @Arg("id") courseId: string
+  ): Promise<Course | null> {
     const qb = await AppDataSource.getRepository(Course)
       .createQueryBuilder("course")
       .where("course.instructorId = :instructorId", {
@@ -80,6 +85,40 @@ export class CourseResolver {
       .leftJoinAndSelect("sections.lessons", "lessons")
       .where("course.id = :courseId", {
         courseId: courseId,
+      })
+      .where("course.publishedStatus = :publishedStatus", {
+        publishedStatus: "draft",
+      })
+      .getOne();
+
+    if (qb) {
+      return qb;
+    } else {
+      return null;
+    }
+  }
+
+
+  @Query(() => Course, { nullable: true })
+  async getPublishedCourse(
+    @Ctx() { req }: MyContext,
+    @Arg("id") courseId: string
+  ): Promise<Course | null> {
+    const qb = await AppDataSource.getRepository(Course)
+      .createQueryBuilder("course")
+      .where("course.instructorId = :instructorId", {
+        instructorId: req.session.userId,
+      })
+      .leftJoinAndSelect("course.sections", "sections")
+      .where("course.id = :courseId", {
+        courseId: courseId,
+      })
+      .leftJoinAndSelect("sections.lessons", "lessons")
+      .where("course.id = :courseId", {
+        courseId: courseId,
+      })
+      .where("course.publishedStatus = :publishedStatus", {
+        publishedStatus: "published",
       })
       .getOne();
 
@@ -96,6 +135,9 @@ export class CourseResolver {
       .createQueryBuilder("course")
       .where("course.instructorId = :instructorId", {
         instructorId: req.session.userId,
+      })
+      .where("course.publishedStatus = :publishedStatus", {
+        publishedStatus: "draft",
       })
       .orderBy('course."createdAt"', "ASC")
       .getMany();
@@ -115,7 +157,6 @@ export class CourseResolver {
       .where("course.id = :courseId", {
         courseId: courseId,
       })
-      .orderBy('course."createdAt"', "ASC")
       .getOne();
     return qb;
   }
@@ -130,6 +171,7 @@ export class CourseResolver {
       id: uuidv4(),
       title: title,
       instructorId: req.session.userId,
+      publishedStatus: "draft",
     }).save();
   }
 
