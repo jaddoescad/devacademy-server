@@ -8,7 +8,6 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryColumn,
-  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { Course } from "./Course";

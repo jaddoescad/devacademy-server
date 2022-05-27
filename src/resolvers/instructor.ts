@@ -175,7 +175,7 @@ export class InstructorResolver {
         ],
       };
     }
-    const instructorId = parseInt(userId);
+    const instructorId = userId;
     const instructor = await Instructor.findOneBy({ id: instructorId });
 
     if (!instructor) {

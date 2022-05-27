@@ -13,7 +13,6 @@ import {
 } from "type-graphql";
 import { Course } from "../entities/Course";
 import { v4 as uuidv4 } from "uuid";
-import { IsNull } from "typeorm";
 
 // import { User } from "../entities/User";
 
@@ -181,8 +180,7 @@ export class CourseResolver {
     @Arg("title") title: string,
     @Arg("sectionId") sectionId: string,
     @Arg("courseId") courseId: string,
-    @Arg("sectionOrder", (type) => [String]) sectionOrder: string[],
-    @Ctx() { req }: MyContext
+    @Arg("sectionOrder", () => [String]) sectionOrder: string[],
   ): Promise<boolean> {
     await AppDataSource.transaction(async (transactionalEntityManager) => {
       transactionalEntityManager
@@ -217,10 +215,10 @@ export class CourseResolver {
   @UseMiddleware(isAuth)
   async changeSectionOrder(
     @Arg("courseId") courseId: string,
-    @Arg("sectionOrder", (type) => [String]) sectionOrder: string[],
-    @Ctx() { req }: MyContext
+    @Arg("sectionOrder", () => [String]) sectionOrder: string[],
   ): Promise<Course | null> {
     const course = await Course.findOneBy({ id: courseId });
+    
     if (!course) {
       return null;
     }
@@ -366,9 +364,8 @@ export class CourseResolver {
     @Arg("nextSectionId") nextSectionId: string,
     @Arg("currentSectionId") currentSectionId: string,
     @Arg("currentLessonId") currentLessonId: string,
-    @Arg("currentLessonOrder", (type) => [String]) currentLessonOrder: string[],
-    @Arg("nextLessonOrder", (type) => [String]) nextLessonOrder: string[],
-    @Ctx() { req }: MyContext
+    @Arg("currentLessonOrder", () => [String]) currentLessonOrder: string[],
+    @Arg("nextLessonOrder", () => [String]) nextLessonOrder: string[],
   ): Promise<OrderedLessonsInMultipleSections | null> {
     const nextSection = await Section.findOneBy({ id: nextSectionId });
     const currentSection = await Section.findOneBy({ id: currentSectionId });
@@ -412,9 +409,7 @@ export class CourseResolver {
       });
 
       const currentLesson = await Lesson.findOneBy({ id: currentLessonId });
-      const course = await Course.findOneBy({
-        id: "77",
-      });
+
       if (currentLesson) {
         return {
           currentSection,
@@ -432,8 +427,7 @@ export class CourseResolver {
   @UseMiddleware(isAuth)
   async changeLessonOrderSameSection(
     @Arg("sectionId") sectionId: string,
-    @Arg("lessonOrder", (type) => [String]) lessonOrder: string[],
-    @Ctx() { req }: MyContext
+    @Arg("lessonOrder", () => [String]) lessonOrder: string[],
   ): Promise<Section | null> {
     const section = await Section.findOneBy({ id: sectionId });
     if (!section) {
@@ -452,8 +446,7 @@ export class CourseResolver {
     @Arg("title") title: string,
     @Arg("sectionId") sectionId: string,
     @Arg("lessonId") lessonId: string,
-    @Arg("lessonOrder", (type) => [String]) lessonOrder: string[],
-    @Ctx() { req }: MyContext
+    @Arg("lessonOrder", () => [String]) lessonOrder: string[]
   ): Promise<boolean> {
     await AppDataSource.transaction(async (transactionalEntityManager) => {
       transactionalEntityManager
@@ -671,8 +664,7 @@ export class CourseResolver {
   @Mutation(() => Course)
   // @UseMiddleware(isAuth)
   async createPublished(
-    @Arg("courseId") courseId: string,
-    @Ctx() { req }: MyContext
+    @Arg("courseId") courseId: string
   ): Promise<Course | null> {
     // const course = await Course.findOneBy({ id: courseId });
 

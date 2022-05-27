@@ -26,12 +26,13 @@
     "experimentalDecorators": true,
     "resolveJsonModule": true,
     "baseUrl": ".",
-    "skipLibCheck": false
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules"
   ],
   "include": [
+    "src/env.d.ts",
     "./src/**/*.tsx",
     "./src/**/*.ts"
 , "src/migrations/course.js"  ]

@@ -11,31 +11,10 @@ import connectRedis from "connect-redis";
 import { MyContext } from "./types";
 import { COOKIE_NAME, __prod__ } from "./constants";
 import cors from "cors";
-import { DataSource } from "typeorm";
-// import { __prod__ } from "./constants";
-import { Course } from "./entities/Course";
-// import path from "path";
-import { Instructor } from "./entities/Instructor";
-
 import "reflect-metadata";
-import { Section } from "./entities/Section";
-import { Lesson } from "./entities/Lesson";
-import { TimeWatched } from "./entities/TimeWatched";
-import path from "path";
 import AppDataSource  from "./ormconfig";
-// 
-// export const AppDataSource = new DataSource({
-//   type: "postgres",
-//   username: "postgres",
-//   password: "postgres",
-//   database: "devacademy" ,
-//   synchronize: true,
-//   logging: true,
-//   migrationsRun: true,
-//   migrations: [path.join(__dirname, "./migration/*")],
-//   migrationsTableName: 'migrations',
-//   entities: [Course, Instructor, Section, Lesson, TimeWatched],
-// });
+import 'dotenv-safe/config';
+
 
 const main = async () => {
 
@@ -45,20 +24,18 @@ const main = async () => {
     })
     .catch((error) => console.log(error));
 
+
   const app = express();
   let RedisStore = connectRedis(session);
 
-  const redis = new Redis();
+  const redis = new Redis(process.env.REDIS_URL);
+  app.set("proxy", 1);
 
   // //fix after localdev only
   app.use(
     cors({
       credentials: true,
-      origin: [
-        "https://studio.apollographql.com",
-        "http://localhost:4000/graphql",
-        "http://localhost:3000",
-      ],
+      origin: process.env.CORS_ORIGIN
     })
   );
 
@@ -69,12 +46,13 @@ const main = async () => {
         client: redis,
         disableTouch: true,
       }),
-      secret: "aslkdfjoiqrfrmfr12312",
+      secret: process.env.SECRET_SESSION,
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: !__prod__,
+        secure: __prod__,
+        domain: __prod__ ? ".devacademy.com" : undefined,
         sameSite: "lax",
         maxAge: 1000 * 60 * 60 * 24 * 7 * 365, // 7 years
       },
@@ -102,7 +80,7 @@ const main = async () => {
 
   apolloServer.applyMiddleware({ app, cors: false });
 
-  app.listen(4000, () => console.log("Server listening on port 4000"));
+  app.listen(parseInt(process.env.PORT), () => console.log("Server listening on port 4000"));
 };
 
 main().catch((err) => {
